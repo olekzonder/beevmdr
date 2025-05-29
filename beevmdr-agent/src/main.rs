@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc,Mutex};
 use std::time::Duration;
 use std::collections::HashMap;
+use std::path::Path;
 
 mod cache;
 
@@ -63,6 +64,9 @@ fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>) -> ::std:
         String::from_utf8_lossy(filename_bytes).into_owned()
     };
 
+    if Path::new(&filename).starts_with("/proc") {
+        return 0;
+    }
     if let Some(value) = cache::lookup_or_insert(table, &filename) {
         println!("comm: {:?}, path: {} ({:?})",comm, filename, value);
     }

@@ -29,7 +29,6 @@ impl Eq for Key {}
 
 #[derive(Clone, Debug)]
 pub struct Value {
-    pub version: String,
     pub sha256: String,
 }
 
@@ -54,7 +53,7 @@ pub fn lookup_or_insert<P: AsRef<Path>>(table: &SharedTable, filename: P) -> Opt
             table.insert(key, value.clone());
             Some(value)
         }
-        Err(e) => {
+        Err(_e) => {
             None
         }
     }
@@ -80,6 +79,5 @@ pub fn compute_sha256<P: AsRef<Path>>(path: P) -> io::Result<String> {
 
 pub fn compute_file_metadata<P: AsRef<Path>>(path: P) -> io::Result<Value> {
     let sha256 = compute_sha256(&path)?;
-    let version = "unknown";
-    Ok(Value { version: version.to_string(), sha256 })
+    Ok(Value { sha256 })
 }
