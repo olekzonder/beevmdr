@@ -1,4 +1,4 @@
-#include "beevms.skel.h"
+#include "beevmdr.skel.h"
 #include <bpf/libbpf.h>
 #include <errno.h>
 #include <signal.h>
@@ -15,7 +15,18 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
 
 static volatile sig_atomic_t stop;
 
+#define MAX_FILE_SIZE 255
+struct output{
+  long ts;
+  pid_t pid;
+  char comm[16];
+  char filename[MAX_FILE_SIZE];
+};
+
+
 static int handle_event(void *ctx, void *data, size_t data_sz) {
+  struct output *out = (struct output *) data;
+  printf("%s\n",out->filename);
   return 0;
 }
 
@@ -23,14 +34,14 @@ static void sig_int(int signo) { stop = 1; }
 
 int main(int argc, char **argv) {
   struct ring_buffer *rb = NULL;
-  struct beevms_bpf *skel;
+  struct beevmdr_bpf *skel;
   int err;
 
   /* Set up libbpf errors and debug info callback */
   libbpf_set_print(libbpf_print_fn);
 
   /* Open load and verify BPF application */
-  skel = beevms_bpf__open_and_load();
+  skel = beevmdr_bpf__open_and_load();
   if (!skel) {
     fprintf(stderr, "Failed to open BPF skeleton\n");
     return 1;
@@ -43,7 +54,7 @@ int main(int argc, char **argv) {
     goto cleanup;
   }
   /* Attach tracepoint handler */
-  err = beevms_bpf__attach(skel);
+  err = beevmdr_bpf__attach(skel);
   if (err) {
     fprintf(stderr, "Failed to attach BPF skeleton\n");
     goto cleanup;
@@ -68,6 +79,6 @@ int main(int argc, char **argv) {
   }
 
 cleanup:
-  beevms_bpf__destroy(skel);
+  beevmdr_bpf__destroy(skel);
   return -err;
 }
