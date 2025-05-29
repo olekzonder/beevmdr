@@ -2,3 +2,4 @@
 .output
 build
 *.json
+beevmdr-agent/target
