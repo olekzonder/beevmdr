@@ -3,3 +3,4 @@
 build
 *.json
 beevmdr-agent/target
+*.pem
