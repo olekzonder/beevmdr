@@ -5,7 +5,7 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 pub type SharedOS = Arc<Mutex<OS>>;
-pub fn new_shared_os() ->  SharedOS{
+pub fn new_shared_os() -> SharedOS {
     Arc::new(Mutex::new(OS::new()))
 }
 
@@ -21,7 +21,6 @@ fn get_os_info() -> HashMap<String, String> {
     let content = fs::read_to_string("/etc/os-release")
         .or_else(|_| fs::read_to_string("/usr/lib/os-release"))
         .expect("Unable to open os-release");
-
     let mut map = HashMap::new();
 
     for line in content.lines() {
@@ -34,7 +33,6 @@ fn get_os_info() -> HashMap<String, String> {
             map.insert(key.to_string(), value.to_string());
         }
     }
-
     map
 }
 
@@ -44,7 +42,7 @@ impl OS {
         let os_id = os_info.get("ID").map(|s| s.to_lowercase());
 
         let impl_: Box<dyn OSImpl> = match os_id.as_deref() {
-            Some("debian") | Some("ubuntu") | Some("astra linux")=> Box::new(DebianOS),
+            Some("debian") | Some("ubuntu") | Some("astra linux") => Box::new(DebianOS),
             _ => Box::new(NotImplementedOS),
         };
 
@@ -74,7 +72,9 @@ impl OSImpl for DebianOS {
             .map_err(|e| e.to_string())?;
 
         if !dpkg_output.status.success() {
-            return Err("Файл не принадлежит ни одному пакету или произошла ошибка dpkg".to_string());
+            return Err(
+                "Файл не принадлежит ни одному пакету или произошла ошибка dpkg".to_string(),
+            );
         }
 
         let output_str = String::from_utf8_lossy(&dpkg_output.stdout);

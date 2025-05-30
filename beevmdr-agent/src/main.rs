@@ -1,20 +1,20 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use bazaar::BazaarHashDB;
 use cache::Key;
 use cache::Value;
+use libbpf_rs::skel::OpenSkel as _;
+use libbpf_rs::skel::SkelBuilder as _;
+use libbpf_rs::RingBufferBuilder;
+use std::collections::HashMap;
 use std::mem;
 use std::mem::MaybeUninit;
-use libbpf_rs::RingBufferBuilder;
-use libbpf_rs::skel::SkelBuilder as _;
-use libbpf_rs::skel::OpenSkel as _;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc,Mutex};
-use std::time::Duration;
-use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-mod cache;
 mod bazaar;
+mod cache;
 mod beevmdr {
     include!(concat!(env!("OUT_DIR"), "/beevmdr.skel.rs"));
 }
@@ -44,7 +44,11 @@ fn bump_memlock_rlimit() -> Result<()> {
     Ok(())
 }
 
-fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>, bazaar: &BazaarHashDB) -> ::std::os::raw::c_int {
+fn event_handler(
+    data: &[u8],
+    table: &Arc<Mutex<HashMap<Key, Value>>>,
+    bazaar: &BazaarHashDB,
+) -> ::std::os::raw::c_int {
     if data.len() != mem::size_of::<Output>() {
         eprintln!(
             "Invalid size {} != {}",
@@ -54,10 +58,10 @@ fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>, bazaar: &
         return -1;
     }
     let event = unsafe { &*(data.as_ptr() as *const Output) };
-    
+
     let comm = String::from_utf8_lossy(&event.comm);
     let comm = comm.trim_end_matches('\0');
-    
+
     let filename_bytes = &event.filename;
     let filename = if let Some(null_pos) = filename_bytes.iter().position(|&x| x == 0) {
         String::from_utf8_lossy(&filename_bytes[..null_pos]).into_owned()
@@ -72,11 +76,13 @@ fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>, bazaar: &
         if value.checked == false {
             if bazaar.contains_hash(&value.sha256) {
                 println!("[ALERT] Malicious binary detected!");
-                println!("comm: {:?}, path: {} sha256: {}", comm, filename, value.sha256);
+                println!(
+                    "comm: {:?}, path: {} sha256: {}",
+                    comm, filename, value.sha256
+                );
             }
             value.checked = true;
         }
-        
     }
     0
 }
@@ -91,7 +97,7 @@ fn main() -> Result<()> {
     let open_skel = skel_builder.open(&mut open_object).unwrap();
     let skel = open_skel.load().unwrap();
     let _links = skel.progs.trace_exec.attach()?;
-    
+
     let map = skel.maps.rb;
 
     let table_clone = Arc::clone(&table);

@@ -1,11 +1,11 @@
+use reqwest::blocking::Client;
 use std::collections::HashSet;
+use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::BufReader;
 use std::io::prelude::*;
+use std::io::BufReader;
 use std::path::Path;
-use std::fs;
-use reqwest::blocking::Client;
 
 pub struct BazaarHashDB {
     hashes: HashSet<String>,
@@ -26,7 +26,7 @@ impl BazaarHashDB {
     }
 
     fn download_file(file_path: &str) -> io::Result<()> {
-        let url = "https://bazaar.abuse.ch/export/txt/sha256/recent/"; 
+        let url = "https://bazaar.abuse.ch/export/txt/sha256/recent/";
 
         let client = Client::new();
         let response = client.get(url).send().map_err(|e| {

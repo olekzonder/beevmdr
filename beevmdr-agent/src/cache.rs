@@ -1,12 +1,12 @@
 // src/hash_table.rs
 
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::{self, Read};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
 pub struct Key {
@@ -54,9 +54,7 @@ pub fn lookup_or_insert<P: AsRef<Path>>(table: &SharedTable, filename: P) -> Opt
             table.insert(key, value.clone());
             Some(value)
         }
-        Err(_e) => {
-            None
-        }
+        Err(_e) => None,
     }
 }
 
@@ -80,5 +78,8 @@ pub fn compute_sha256<P: AsRef<Path>>(path: P) -> io::Result<String> {
 
 pub fn compute_file_metadata<P: AsRef<Path>>(path: P) -> io::Result<Value> {
     let sha256 = compute_sha256(&path)?;
-    Ok(Value { sha256:sha256,checked:false })
+    Ok(Value {
+        sha256: sha256,
+        checked: false,
+    })
 }
