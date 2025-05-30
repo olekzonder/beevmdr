@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use bazaar::BazaarHashDB;
 use cache::Key;
 use cache::Value;
 use std::mem;
@@ -13,7 +14,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 mod cache;
-
+mod bazaar;
 mod beevmdr {
     include!(concat!(env!("OUT_DIR"), "/beevmdr.skel.rs"));
 }
@@ -43,7 +44,7 @@ fn bump_memlock_rlimit() -> Result<()> {
     Ok(())
 }
 
-fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>) -> ::std::os::raw::c_int {
+fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>, bazaar: &BazaarHashDB) -> ::std::os::raw::c_int {
     if data.len() != mem::size_of::<Output>() {
         eprintln!(
             "Invalid size {} != {}",
@@ -67,15 +68,21 @@ fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>) -> ::std:
     if Path::new(&filename).starts_with("/proc") {
         return 0;
     }
-    if let Some(value) = cache::lookup_or_insert(table, &filename) {
-        println!("comm: {:?}, path: {} ({:?})",comm, filename, value);
+    if let Some(mut value) = cache::lookup_or_insert(table, &filename) {
+        if !value.checked {
+            if bazaar.contains_hash(&value.sha256) {
+                println!("[ALERT] Malicious binary detected!");
+                println!("comm: {:?}, path: {} sha256: {}", comm, filename, value.sha256);
+            }
+        }
+        value.checked = true;
     }
     0
 }
 
 fn main() -> Result<()> {
     bump_memlock_rlimit()?;
-    
+    let bazaar = BazaarHashDB::load("/opt/bazaar.txt")?;
     let table = cache::new_shared_table(); // Create shared hash table
 
     let skel_builder = BeevmdrSkelBuilder::default();
@@ -89,7 +96,7 @@ fn main() -> Result<()> {
     let table_clone = Arc::clone(&table);
     let mut builder = RingBufferBuilder::new();
     builder
-        .add(&map, move |data| event_handler(data, &table_clone))
+        .add(&map, move |data| event_handler(data, &table_clone, &bazaar))
         .unwrap();
 
     let running = Arc::new(AtomicBool::new(true));

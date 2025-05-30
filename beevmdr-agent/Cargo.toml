@@ -10,8 +10,10 @@ libbpf-rs = "0.24.8"
 libc = "0.2.172"
 object = "0.36.7"
 plain = "0.2.3"
+reqwest = {version="0.12.18", features=["blocking"]} 
 sha2 = "0.10.9"
 structopt = "0.3.26"
+tokio = "1.45.1"
 
 [build-dependencies]
 libbpf-cargo = "0.24"
