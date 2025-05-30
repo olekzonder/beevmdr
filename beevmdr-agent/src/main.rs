@@ -69,13 +69,14 @@ fn event_handler(data: &[u8], table: &Arc<Mutex<HashMap<Key, Value>>>, bazaar: &
         return 0;
     }
     if let Some(mut value) = cache::lookup_or_insert(table, &filename) {
-        if !value.checked {
+        if value.checked == false {
             if bazaar.contains_hash(&value.sha256) {
                 println!("[ALERT] Malicious binary detected!");
                 println!("comm: {:?}, path: {} sha256: {}", comm, filename, value.sha256);
             }
+            value.checked = true;
         }
-        value.checked = true;
+        
     }
     0
 }
