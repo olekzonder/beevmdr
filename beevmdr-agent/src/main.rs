@@ -13,6 +13,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use libbpf_rs::MapCore;
 
 mod os;
 mod bazaar;
@@ -51,6 +52,7 @@ fn event_handler(
     table: &Arc<Mutex<HashMap<Key, Value>>>,
     bazaar: &BazaarHashDB,
     os: &OS,
+    filter_pids: &libbpf_rs::Map, 
 ) -> ::std::os::raw::c_int {
     if data.len() != mem::size_of::<Output>() {
         eprintln!(
@@ -61,7 +63,7 @@ fn event_handler(
         return -1;
     }
     let event = unsafe { &*(data.as_ptr() as *const Output) };
-
+    let pid = &event.pid;
     let comm = String::from_utf8_lossy(&event.comm);
     let comm = comm.trim_end_matches('\0');
 
@@ -79,12 +81,17 @@ fn event_handler(
         if value.checked == false {
             // value.version = os.check_package_version(&filename).unwrap_or_default();
             if bazaar.contains_hash(&value.sha256) {
-                println!("[ALERT] Malicious binary detected!");
+                println!("[ALERT] Malicious binary detected! Killing on next syscall...");
+                let key = pid;
+                let value = 1u8;
+                if let Err(e) = filter_pids.update(&key.to_le_bytes(), &value.to_le_bytes(), libbpf_rs::MapFlags::ANY) {
+                    eprintln!("Failed to insert PID into filter_pids map: {}", e);
+                }
             }
             value.checked = true;
             println!(
-                "comm: {:?}, path: {} sha256: {}",
-                comm, filename, value.sha256
+                "pid: {} comm: {:?}, path: {} sha256: {}",
+                pid, comm, filename, value.sha256
             );
         }
     }
@@ -102,14 +109,14 @@ fn main() -> Result<()> {
     let mut open_object = MaybeUninit::uninit();
     let open_skel = skel_builder.open(&mut open_object).unwrap();
     let skel = open_skel.load().unwrap();
-    let _links = skel.progs.trace_exec.attach()?;
-
+    let _link1 = skel.progs.trace_exec.attach()?;
+    let _link2 = skel.progs.kill_proc.attach()?;
+    let filter_pids = skel.maps.filter_pids;
     let map = skel.maps.rb;
-
     let table_clone = Arc::clone(&table);
     let mut builder = RingBufferBuilder::new();
     builder
-        .add(&map, move |data| event_handler(data, &table_clone, &bazaar,&os))
+        .add(&map, move |data| event_handler(data, &table_clone, &bazaar,&os,&filter_pids))
         .unwrap();
 
     let running = Arc::new(AtomicBool::new(true));
@@ -124,6 +131,5 @@ fn main() -> Result<()> {
     while running.load(Ordering::SeqCst) {
         ringbuf.poll(Duration::from_millis(100))?;
     }
-
     Ok(())
 }
