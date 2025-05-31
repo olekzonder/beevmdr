@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::io::{self, Read};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use chrono::Utc;
 
 #[derive(Clone, Debug)]
 pub struct Key {
@@ -29,6 +30,7 @@ impl Eq for Key {}
 
 #[derive(Clone, Debug)]
 pub struct Value {
+    pub timestamp: String,
     pub sha256: String,
     pub version: String,
     pub checked: bool,
@@ -80,6 +82,7 @@ pub fn compute_sha256<P: AsRef<Path>>(path: P) -> io::Result<String> {
 pub fn compute_file_metadata<P: AsRef<Path>>(path: P) -> io::Result<Value> {
     let sha256 = compute_sha256(&path)?;
     Ok(Value {
+        timestamp: Utc::now().to_rfc3339().to_string(),
         sha256: sha256,
         version: "unknown".to_string(),
         checked: false,
