@@ -27,7 +27,6 @@ impl BazaarHashDB {
 
     fn download_file(file_path: &str) -> io::Result<()> {
         let url = "https://bazaar.abuse.ch/export/txt/sha256/recent/";
-
         let client = Client::new();
         let response = client.get(url).send().map_err(|e| {
             io::Error::new(
