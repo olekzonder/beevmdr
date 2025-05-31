@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use bazaar::BazaarHashDB;
+use os::OS;
 use cache::Key;
 use cache::Value;
 use libbpf_rs::skel::OpenSkel as _;
@@ -13,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+mod os;
 mod bazaar;
 mod cache;
 mod beevmdr {
@@ -48,6 +50,7 @@ fn event_handler(
     data: &[u8],
     table: &Arc<Mutex<HashMap<Key, Value>>>,
     bazaar: &BazaarHashDB,
+    os: &OS,
 ) -> ::std::os::raw::c_int {
     if data.len() != mem::size_of::<Output>() {
         eprintln!(
@@ -69,11 +72,12 @@ fn event_handler(
         String::from_utf8_lossy(filename_bytes).into_owned()
     };
 
-    if Path::new(&filename).starts_with("/proc") {
+    if Path::new(&filename).starts_with("/proc") || Path::new(&filename).starts_with("/usr/bin/dpkg") {
         return 0;
     }
     if let Some(mut value) = cache::lookup_or_insert(table, &filename) {
         if value.checked == false {
+            // value.version = os.check_package_version(&filename).unwrap_or_default();
             if bazaar.contains_hash(&value.sha256) {
                 println!("[ALERT] Malicious binary detected!");
                 println!(
@@ -81,6 +85,10 @@ fn event_handler(
                     comm, filename, value.sha256
                 );
             }
+            println!(
+                "comm: {:?}, path: {} sha256: {} version: {}",
+                comm, filename, value.sha256, value.version
+            );
             value.checked = true;
         }
     }
@@ -90,6 +98,8 @@ fn event_handler(
 fn main() -> Result<()> {
     bump_memlock_rlimit()?;
     let bazaar = BazaarHashDB::load("/opt/bazaar.txt")?;
+    let os = OS::new();
+
     let table = cache::new_shared_table(); // Create shared hash table
 
     let skel_builder = BeevmdrSkelBuilder::default();
@@ -103,7 +113,7 @@ fn main() -> Result<()> {
     let table_clone = Arc::clone(&table);
     let mut builder = RingBufferBuilder::new();
     builder
-        .add(&map, move |data| event_handler(data, &table_clone, &bazaar))
+        .add(&map, move |data| event_handler(data, &table_clone, &bazaar,&os))
         .unwrap();
 
     let running = Arc::new(AtomicBool::new(true));

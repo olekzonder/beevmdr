@@ -1,13 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io;
 use std::process::Command;
-use std::sync::{Arc, Mutex};
-
-pub type SharedOS = Arc<Mutex<OS>>;
-pub fn new_shared_os() -> SharedOS {
-    Arc::new(Mutex::new(OS::new()))
-}
 
 trait OSImpl {
     fn get_package_version(&self, filename: &str) -> Result<String, String>;
@@ -101,7 +94,7 @@ impl OSImpl for DebianOS {
                     .split(':')
                     .nth(1)
                     .map(str::trim)
-                    .unwrap_or("неизвестно");
+                    .unwrap_or("unknown");
 
                 return Ok(format!("{}: {}", package_info, version));
             }

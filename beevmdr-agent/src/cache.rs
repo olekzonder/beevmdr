@@ -30,6 +30,7 @@ impl Eq for Key {}
 #[derive(Clone, Debug)]
 pub struct Value {
     pub sha256: String,
+    pub version: String,
     pub checked: bool,
 }
 
@@ -80,6 +81,7 @@ pub fn compute_file_metadata<P: AsRef<Path>>(path: P) -> io::Result<Value> {
     let sha256 = compute_sha256(&path)?;
     Ok(Value {
         sha256: sha256,
+        version: "unknown".to_string(),
         checked: false,
     })
 }
