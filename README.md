@@ -47,7 +47,11 @@ make
 3. Разработать технологии сбора данных и автоматизированного создания отчётов о состоянии инфраструктуры
 
 Qualys VMDR
+
 Tetragon
+
 Tracee
+
 CrowdStrike Falcon
+
 Kaspersky EDR

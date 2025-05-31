@@ -80,16 +80,12 @@ fn event_handler(
             // value.version = os.check_package_version(&filename).unwrap_or_default();
             if bazaar.contains_hash(&value.sha256) {
                 println!("[ALERT] Malicious binary detected!");
-                println!(
-                    "comm: {:?}, path: {} sha256: {}",
-                    comm, filename, value.sha256
-                );
             }
-            println!(
-                "comm: {:?}, path: {} sha256: {} version: {}",
-                comm, filename, value.sha256, value.version
-            );
             value.checked = true;
+            println!(
+                "comm: {:?}, path: {} sha256: {}",
+                comm, filename, value.sha256
+            );
         }
     }
     0
